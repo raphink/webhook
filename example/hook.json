@@ -1,0 +1,19 @@
+[
+  {
+    "id": "webhook",
+    "execute-command": "/example/do.sh",
+    "command-working-directory": "/example",
+	 "pass-arguments-to-command":
+	    [
+	      {
+		"source": "entire-payload"
+	      },
+	      {
+		"source": "entire-headers"
+	      },
+	      {
+		"source": "entire-query"
+	      }
+	    ]
+  }
+]
