@@ -3,3 +3,5 @@ COPY . /go/src/webhook
 WORKDIR /go/src/webhook
 RUN go-wrapper download
 RUN go-wrapper install
+COPY entrypoint.sh /entrypoint.sh
+ENTRYPOINT [ "/entrypoint.sh" ]
