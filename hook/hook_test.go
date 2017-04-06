@@ -33,6 +33,32 @@ func TestCheckPayloadSignature(t *testing.T) {
 	}
 }
 
+var checkPayloadSignature256Tests = []struct {
+	payload   []byte
+	secret    string
+	signature string
+	mac       string
+	ok        bool
+}{
+	{[]byte(`{"a": "z"}`), "secret", "f417af3a21bd70379b5796d5f013915e7029f62c580fb0f500f59a35a6f04c89", "f417af3a21bd70379b5796d5f013915e7029f62c580fb0f500f59a35a6f04c89", true},
+	{[]byte(`{"a": "z"}`), "secret", "sha256=f417af3a21bd70379b5796d5f013915e7029f62c580fb0f500f59a35a6f04c89", "f417af3a21bd70379b5796d5f013915e7029f62c580fb0f500f59a35a6f04c89", true},
+	// failures
+	{[]byte(`{"a": "z"}`), "secret", "XXX7af3a21bd70379b5796d5f013915e7029f62c580fb0f500f59a35a6f04c89", "f417af3a21bd70379b5796d5f013915e7029f62c580fb0f500f59a35a6f04c89", false},
+}
+
+func TestCheckPayloadSignature256(t *testing.T) {
+	for _, tt := range checkPayloadSignature256Tests {
+		mac, err := CheckPayloadSignature256(tt.payload, tt.secret, tt.signature)
+		if (err == nil) != tt.ok || mac != tt.mac {
+			t.Errorf("failed to check payload signature {%q, %q, %q}:\nexpected {mac:%#v, ok:%#v},\ngot {mac:%#v, ok:%#v}", tt.payload, tt.secret, tt.signature, tt.mac, tt.ok, mac, (err == nil))
+		}
+
+		if err != nil && strings.Contains(err.Error(), tt.mac) {
+			t.Errorf("error message should not disclose expected mac: %s", err)
+		}
+	}
+}
+
 var extractParameterTests = []struct {
 	s      string
 	params interface{}
@@ -251,13 +277,15 @@ var matchRuleTests = []struct {
 	{"value", "", "", "z", Argument{"header", "a", ""}, &map[string]interface{}{"A": "z"}, nil, nil, []byte{}, true, false},
 	{"regex", "^z", "", "z", Argument{"header", "a", ""}, &map[string]interface{}{"A": "z"}, nil, nil, []byte{}, true, false},
 	{"payload-hash-sha1", "", "secret", "", Argument{"header", "a", ""}, &map[string]interface{}{"A": "b17e04cbb22afa8ffbff8796fc1894ed27badd9e"}, nil, nil, []byte(`{"a": "z"}`), true, false},
+	{"payload-hash-sha256", "", "secret", "", Argument{"header", "a", ""}, &map[string]interface{}{"A": "f417af3a21bd70379b5796d5f013915e7029f62c580fb0f500f59a35a6f04c89"}, nil, nil, []byte(`{"a": "z"}`), true, false},
 	// failures
 	{"value", "", "", "X", Argument{"header", "a", ""}, &map[string]interface{}{"A": "z"}, nil, nil, []byte{}, false, false},
 	{"regex", "^X", "", "", Argument{"header", "a", ""}, &map[string]interface{}{"A": "z"}, nil, nil, []byte{}, false, false},
 	{"value", "", "2", "X", Argument{"header", "a", ""}, &map[string]interface{}{"Y": "z"}, nil, nil, []byte{}, false, false}, // reference invalid header
 	// errors
-	{"regex", "*", "", "", Argument{"header", "a", ""}, &map[string]interface{}{"A": "z"}, nil, nil, []byte{}, false, true},                 // invalid regex
-	{"payload-hash-sha1", "", "secret", "", Argument{"header", "a", ""}, &map[string]interface{}{"A": ""}, nil, nil, []byte{}, false, true}, // invalid hmac
+	{"regex", "*", "", "", Argument{"header", "a", ""}, &map[string]interface{}{"A": "z"}, nil, nil, []byte{}, false, true},                   // invalid regex
+	{"payload-hash-sha1", "", "secret", "", Argument{"header", "a", ""}, &map[string]interface{}{"A": ""}, nil, nil, []byte{}, false, true},   // invalid hmac
+	{"payload-hash-sha256", "", "secret", "", Argument{"header", "a", ""}, &map[string]interface{}{"A": ""}, nil, nil, []byte{}, false, true}, // invalid hmac
 }
 
 func TestMatchRule(t *testing.T) {
